@@ -11,6 +11,7 @@ requests = "*"
 py-openaq = "*"
 python-decouple = "*"
 datetime = "*"
+python-dateutil = "*"
 
 [requires]
 python_version = "3.7"

@@ -1,14 +1,15 @@
 """Minimal flask app"""
 
 from flask import Flask, render_template
-import requests 
-import openaq
+import requests
+from openaq import OpenAQ
 from decouple import config
 from flask_sqlalchemy import SQLAlchemy
 
 APP = Flask(__name__)
+APP.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
 DB = SQLAlchemy(APP)
-api = openaq.OpenAQ()
+api = OpenAQ()
 
 
 class Record(DB.Model):
@@ -19,14 +20,6 @@ class Record(DB.Model):
 
     def __repr__(self):
         return '<DATE: {}, VALUE: {}>'.format(self.datetime, self.value)
-
-
-def create_app():
-    """base view"""
-    APP.config['ENV'] = config('ENV')
-    APP.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
-    APP.config['SQLALCHEMY_DATABASE_URI'] = config('DATABASE_URL')
-    APP.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 
 def make_list():
@@ -46,17 +39,23 @@ def make_list():
 @APP.route('/')
 def root():
     """main route"""
-    potential_poor_air = Record.query.filter(Record.value >= 10).all()
-    return render_template('base.html',
-                           records=potential_poor_air)
+    return render_template('home.html')
+
+
+@APP.route('/la')
+def la():
+    big_values = Record.query.filter(Record.value >= 10).all()
+    #, Record.city == 'Los Angeles'
+    return render_template('la.html', big_values=big_values)
 
 
 def new_city(city):
-    status, body = api.measurements(city=city, parameter='pm25')
-    citydata = str(body['results'])
-    for result in citydata:
-        db_record = Record(city=city, datetime=result[0], value=result[1])
-        DB.session.add(db_record)
+    """generate datetime and value for specified city"""
+    api = OpenAQ()
+    status, body = api.measurements(city='Los Angeles', parameter='pm25')
+    results = body['results']
+    dates_values = [(result['date']['utc'], result['value']) for result in results]
+    return dates_values
 
 
 @APP.route('/refresh')
